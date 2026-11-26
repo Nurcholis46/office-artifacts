@@ -1,60 +1,34 @@
-// Office Artifacts: The One-Line Placard Contest — entry program.
-//
-// The placard below recasts the office microwave as a ritual hearth.
-// The joke is the fish: every office tribe knows the one colleague who
-// reheats fish in secret and the lasting anger that follows. The date,
-// materials, and bequest sell it as a catalogue label, and the whole
-// conceit lands in a single line well inside the 180-character gate.
+// Office Artifacts placard writer.
+// Writes one museum label for a break-room microwave to /output/entry.txt.
 
-import { chmodSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
-const ENTRY =
+const PLACARD =
   "Hearth of Accelerated Sacrifice, c. 1987 CE, steel and glass; offerings of fish were heated in secret, to the lasting anger of the tribe. Bequest of the Break Room.";
 
-const OUTPUT_DIR = "/output";
-const OUTPUT_PATH = "/output/entry.txt";
-const TEMP_PATH = "/output/entry.txt.tmp";
+const TARGET = "/output/entry.txt";
 
-function codePoints(text: string): number {
-  return [...text].length;
-}
-
-function checkGate(text: string): void {
-  const count = codePoints(text);
+function assertGate(text: string): void {
+  const count = [...text].length;
   if (count < 1 || count > 180) {
-    throw new Error(`gate: length ${count} outside 1-180 code points`);
+    throw new Error(`placard length ${count} outside gate 1-180`);
   }
   if (text.trim().length === 0) {
-    throw new Error("gate: entry is only whitespace");
+    throw new Error("placard is only whitespace");
   }
-  if (text !== text.trim()) {
-    throw new Error("gate: leading or trailing whitespace");
-  }
-  for (const ch of text) {
-    const cp = ch.codePointAt(0) ?? 0;
-    if (cp === 0x0a || cp === 0x0d || cp === 0x2028 || cp === 0x2029) {
-      throw new Error("gate: line break in entry");
-    }
-    if (cp < 0x20 || cp === 0x7f) {
-      throw new Error("gate: control character in entry");
-    }
-    // Reject zero-width and other invisible format characters so the
-    // judge sees exactly the line that was counted.
-    if (cp === 0x200b || cp === 0x200c || cp === 0x200d || cp === 0xfeff) {
-      throw new Error("gate: invisible character in entry");
-    }
+  if (text.includes("\n") || text.includes("\r")) {
+    throw new Error("placard must stay on one line");
   }
 }
 
-checkGate(ENTRY);
+assertGate(PLACARD);
 
-mkdirSync(OUTPUT_DIR, { recursive: true });
-writeFileSync(TEMP_PATH, ENTRY, { encoding: "utf8", mode: 0o644 });
-chmodSync(TEMP_PATH, 0o644);
-renameSync(TEMP_PATH, OUTPUT_PATH);
-chmodSync(OUTPUT_PATH, 0o644);
+mkdirSync(dirname(TARGET), { recursive: true });
+writeFileSync(TARGET, PLACARD, "utf8");
+chmodSync(TARGET, 0o644);
 
-const written = readFileSync(OUTPUT_PATH, { encoding: "utf8" });
-if (written !== ENTRY) {
-  throw new Error("verify: /output/entry.txt does not match the chosen line");
+const mode = statSync(TARGET).mode & 0o777;
+if (mode !== 0o644) {
+  throw new Error(`output mode ${mode.toString(8)} is not 644`);
 }
